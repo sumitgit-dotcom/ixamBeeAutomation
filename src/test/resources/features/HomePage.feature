@@ -11,3 +11,11 @@ Feature: ixamBee Home Page
     Given I open the ixamBee home page
     When I hover on the "Online Course" dropdown
     Then I should see the Online Course dropdown items listed
+    
+      @search
+  Scenario: search
+    Given I open the ixamBee home page
+    When I click the header search bar
+    And I type "rbi grade b" in the search field
+    And I click the "Exam" chip
+    Then the search results should be filtered by Exam

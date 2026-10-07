@@ -2,10 +2,7 @@
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
 <suite name="ixamBee Automation Suite" verbose="1">
 
-    <parameter name="browser" value="chrome"/>
-    <parameter name="env" value="qa"/>
-
-    <test name="BDD Smoke Tests">
+    <test name="search">
         <classes>
             <class name="runners.TestRunner"/>
         </classes>

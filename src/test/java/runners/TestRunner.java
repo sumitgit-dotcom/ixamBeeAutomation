@@ -13,7 +13,7 @@ import org.testng.annotations.DataProvider;
                 "json:target/cucumber-reports/cucumber.json"
         },
         monochrome = true,
-        tags = "@smoke or @dropdown"
+        tags = "@search"     
 )
 public class TestRunner extends AbstractTestNGCucumberTests {
 

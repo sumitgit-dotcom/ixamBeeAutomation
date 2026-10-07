@@ -28,7 +28,7 @@ public class HomePageSteps {
         DriverFactory.quitDriver();
     }
 
-    // ---------------- Smoke test ----------------
+    // -------- Smoke test --------
 
     @Given("I open the ixamBee home page")
     public void i_open_the_ixambee_home_page() {
@@ -39,20 +39,17 @@ public class HomePageSteps {
     @Then("the page title should contain {string}")
     public void the_page_title_should_contain(String expectedTitle) {
         String actualTitle = homePage.getPageTitle();
-
         System.out.println("Expected (contains): " + expectedTitle);
         System.out.println("Actual title       : " + actualTitle);
 
-        assertTrue(
-                actualTitle.toLowerCase().contains(expectedTitle.toLowerCase()),
+        assertTrue(actualTitle.toLowerCase().contains(expectedTitle.toLowerCase()),
                 "❌ Title mismatch!\nExpected to contain: " + expectedTitle
-                        + "\nActual title       : " + actualTitle
-        );
+                        + "\nActual title       : " + actualTitle);
 
         System.out.println("🎉 Title verified successfully");
     }
 
-    // ---------------- Dropdown test ----------------
+    // -------- Online Course dropdown --------
 
     @When("I hover on the {string} dropdown")
     public void i_hover_on_the_dropdown(String dropdownName) throws Exception {
@@ -73,7 +70,34 @@ public class HomePageSteps {
         }
         System.out.println("──────────────────────────────────────────────");
 
-        assertTrue(!items.isEmpty(),
-                "❌ No items found in Online Course dropdown");
+        assertTrue(!items.isEmpty(), "❌ No items found in Online Course dropdown");
+    }
+
+    // -------- Search flow --------
+
+    @When("I click the header search bar")
+    public void i_click_the_header_search_bar() throws Exception {
+        homePage.clickHeaderSearchBar();
+    }
+
+    @When("I type {string} in the search field")
+    public void i_type_in_the_search_field(String query) throws Exception {
+        homePage.typeInSearchField(query);
+    }
+
+    @When("I click the {string} chip")
+    public void i_click_the_chip(String chipName) throws Exception {
+        if (chipName.equalsIgnoreCase("Exam")) {
+            homePage.clickExamChip();
+        } else {
+            throw new IllegalArgumentException("Unsupported chip: " + chipName);
+        }
+    }
+
+    @Then("the search results should be filtered by Exam")
+    public void the_search_results_should_be_filtered_by_exam() {
+        assertTrue(homePage.isSearchResultsVisible(),
+                "❌ Search results page not visible after clicking Exam chip");
+        System.out.println("🎉 Search flow completed successfully");
     }
 }
