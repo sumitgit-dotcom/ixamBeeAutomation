@@ -1,0 +1,34 @@
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# Maven
+target/
+
+# Java
+*.class
+*.jar
+*.war
+
+# Logs
+*.log
+
+# Test outputs
+test-output/
+screenshots/
+reports/
+allure-results/
+extent-reports/
+logs/
+target/cucumber-reports/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
