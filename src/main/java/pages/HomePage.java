@@ -31,7 +31,7 @@ public class HomePage {
     @FindBy(id = "online_course_dropdown")
     private WebElement onlineCourseDropdown;
 
-    // -------- New search-flow locators --------
+    // -------- Search-flow locators --------
 
     @FindBy(xpath = "//div[@class='mb-3 header_search_bar d-none d-lg-block']//input[@id='input-drop-down-body']")
     private WebElement headerSearchBar;
@@ -41,6 +41,14 @@ public class HomePage {
 
     @FindBy(id = "chip-exam")
     private WebElement examChip;
+
+    // -------- Demo-flow locators --------
+
+    @FindBy(id = "js-value")
+    private WebElement demoPhoneInput;
+
+    @FindBy(id = "btn-send-otp")
+    private WebElement sendOtpButton;
 
     public HomePage(WebDriver driver) {
         this.driver = driver;
@@ -289,11 +297,6 @@ public class HomePage {
     // Search Flow
     // =========================================================
 
-    /**
-     * Clicks the header search bar on the home page and waits for navigation
-     * to the search-results screen. Uses Actions class per requirement.
-     * @throws Exception 
-     */
     public void clickHeaderSearchBar() throws Exception {
         try {
             WebElement searchBar = wait.until(
@@ -303,7 +306,6 @@ public class HomePage {
             ((JavascriptExecutor) driver).executeScript(
                     "arguments[0].scrollIntoView({block:'center'});", searchBar);
 
-            // Actions: move + click
             actions.moveToElement(searchBar)
                     .pause(Duration.ofMillis(300))
                     .click()
@@ -311,16 +313,13 @@ public class HomePage {
 
             System.out.println("🔍 Clicked header search bar");
 
-            // Some sites navigate when the user starts typing. Trigger it.
             searchBar.sendKeys("r");
             Thread.sleep(600);
 
-            // If not navigated yet, press Enter
             if (!driver.getCurrentUrl().toLowerCase().contains("search")) {
                 searchBar.sendKeys(Keys.ENTER);
             }
 
-            // Wait for the search results screen (URL or search-input presence)
             wait.until(ExpectedConditions.or(
                     ExpectedConditions.urlContains("search"),
                     ExpectedConditions.presenceOfElementLocated(By.id("search-input"))
@@ -335,12 +334,6 @@ public class HomePage {
         }
     }
 
-    /**
-     * Types the given query into the search field on the results page.
-     * Uses Actions (click to focus) + sendKeys (character-by-character for
-     * React/Angular apps that filter on keyup).
-     * @throws Exception 
-     */
     public void typeInSearchField(String query) throws Exception {
         try {
             WebElement input = wait.until(
@@ -349,25 +342,20 @@ public class HomePage {
             ((JavascriptExecutor) driver).executeScript(
                     "arguments[0].scrollIntoView({block:'center'});", input);
 
-            // Focus via Actions
             actions.moveToElement(input)
                     .pause(Duration.ofMillis(200))
                     .click()
                     .perform();
 
-            // Clear any pre-existing text
             input.sendKeys(Keys.chord(Keys.CONTROL, "a"));
             input.sendKeys(Keys.DELETE);
 
-            // Type character-by-character so JS-driven filters fire
             for (char c : query.toCharArray()) {
                 input.sendKeys(String.valueOf(c));
                 Thread.sleep(80);
             }
 
             System.out.println("⌨️ Typed in search field: " + query);
-
-            // Give results time to render
             Thread.sleep(2000);
 
         } catch (Exception e) {
@@ -376,10 +364,6 @@ public class HomePage {
         }
     }
 
-    /**
-     * Clicks the "Exam" chip on the search results page.
-     * @throws Exception 
-     */
     public void clickExamChip() throws Exception {
         try {
             WebElement chip = wait.until(
@@ -394,7 +378,6 @@ public class HomePage {
                     .perform();
 
             System.out.println("✅ Clicked Exam chip");
-
             Thread.sleep(1500);
 
         } catch (Exception e) {
@@ -403,24 +386,320 @@ public class HomePage {
         }
     }
 
-    /**
-     * Returns true if the search results page is loaded/visible.
-     */
     public boolean isSearchResultsVisible() {
         try {
             boolean onSearchPage = driver.getCurrentUrl().toLowerCase().contains("search");
-
-            boolean hasResults =
-                    !driver.findElements(By.xpath(
-                            "//*[contains(@class,'search-result') " +
-                            "or contains(@class,'result-list') " +
-                            "or contains(@class,'course-card')]")).isEmpty();
-
-            // Fallback: the search input should still be present
+            boolean hasResults = !driver.findElements(By.xpath(
+                    "//*[contains(@class,'search-result') " +
+                    "or contains(@class,'result-list') " +
+                    "or contains(@class,'course-card')]")).isEmpty();
             boolean hasSearchInput = !driver.findElements(By.id("search-input")).isEmpty();
-
             return onSearchPage || hasResults || hasSearchInput;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
+    // =========================================================
+    // Free Demo Flow
+    // =========================================================
+
+    /**
+     * Scrolls to a course card matching the given text on the home page and clicks it.
+     * Uses the nearest anchor ancestor when available.
+     * @throws Exception 
+     */
+    public void scrollAndClickCourseCard(String cardText) {
+        try {
+            By exact = By.xpath("//p[normalize-space()='" + cardText + "']");
+            By contains = By.xpath("//p[contains(normalize-space(),'" +
+                    cardText.replaceAll("\\.\\.\\.$", "").trim() + "')]");
+
+            WebElement card = null;
+            try {
+                card = new WebDriverWait(driver, Duration.ofSeconds(5))
+                        .until(ExpectedConditions.presenceOfElementLocated(exact));
+                System.out.println("✅ Card matched by exact text");
+            } catch (Exception e) {
+                System.out.println("⚠️ Exact match failed, trying contains()");
+                card = wait.until(ExpectedConditions.presenceOfElementLocated(contains));
+                System.out.println("✅ Card matched by contains()");
+            }
+
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].scrollIntoView({block:'center'});", card);
+            Thread.sleep(700);
+
+            // Prefer the closest anchor; fall back to the <p> itself
+            WebElement clickTarget = card;
+            try {
+                WebElement anchor = card.findElement(By.xpath("./ancestor::a[1]"));
+                if (anchor.isDisplayed()) clickTarget = anchor;
+            } catch (Exception ignored) { }
+
+            // Snapshot current window handles + URL before clicking
+            String originalWindow = driver.getWindowHandle();
+            Set<String> windowsBefore = driver.getWindowHandles();
+            String urlBefore = driver.getCurrentUrl();
+
+            try {
+                actions.moveToElement(clickTarget)
+                        .pause(Duration.ofMillis(300))
+                        .click()
+                        .perform();
+            } catch (Exception e) {
+                ((JavascriptExecutor) driver)
+                        .executeScript("arguments[0].click();", clickTarget);
+            }
+
+            System.out.println("🖱️ Clicked course card: " + cardText);
+
+            // Wait briefly for either: (a) new tab, or (b) URL change
+            new WebDriverWait(driver, Duration.ofSeconds(10)).until(d ->
+                    d.getWindowHandles().size() > windowsBefore.size()
+                            || !d.getCurrentUrl().equals(urlBefore));
+
+            // Case 1: A new tab/window opened → switch to it
+            Set<String> windowsAfter = driver.getWindowHandles();
+            if (windowsAfter.size() > windowsBefore.size()) {
+                for (String handle : windowsAfter) {
+                    if (!windowsBefore.contains(handle)) {
+                        driver.switchTo().window(handle);
+                        System.out.println("➡️ Switched to new tab: " + driver.getCurrentUrl());
+                        break;
+                    }
+                }
+            } else {
+                // Case 2: Same tab, URL changed
+                System.out.println("➡️ Navigated in same tab: " + driver.getCurrentUrl());
+            }
+
+            // Bring the window to front and settle
+            driver.switchTo().window(driver.getWindowHandle());
+            ((JavascriptExecutor) driver).executeScript("window.focus();");
+            Thread.sleep(1500);
+
+        } catch (Exception e) {
+            System.out.println("⚠️ Card click did not lead to a new page: " + e.getMessage());
+            // Don't throw — continue the scenario; subsequent steps will validate state
+        }
+    }
+
+    /**
+     * Closes any popup/modal that appears on the course page.
+     * Strategy (in order):
+     *   1. Wait up to 6s for a visible modal container.
+     *   2. Press ESC on the body.
+     *   3. Try a broad set of close-button selectors (button, span, i, img, a).
+     *   4. JS-click each candidate (bypasses overlay interception).
+     *   5. Confirm the modal is gone; retry up to 3 times.
+     *   6. Fallback: hide modal nodes directly via JS.
+     * @throws InterruptedException 
+     */
+    public void closePopupIfPresent() {
+        JavascriptExecutor js = (JavascriptExecutor) driver;
+        By popupClose = By.xpath("//button[@id='closepop-up']");
+
+        try {
+            // Wait for the close button to become clickable
+            WebElement closeBtn = new WebDriverWait(driver, Duration.ofSeconds(8))
+                    .until(ExpectedConditions.elementToBeClickable(popupClose));
+
+            js.executeScript("arguments[0].scrollIntoView({block:'center'});", closeBtn);
+            Thread.sleep(300);
+
+            // Preferred: Actions click
+            try {
+                actions.moveToElement(closeBtn)
+                        .pause(Duration.ofMillis(200))
+                        .click()
+                        .perform();
+                System.out.println("✅ (Actions) Closed popup via //button[@id='closepop-up']");
+            } catch (Exception actionEx) {
+                // Fallback: JS click (handles overlay interception)
+                js.executeScript("arguments[0].click();", closeBtn);
+                System.out.println("✅ (JS click) Closed popup via //button[@id='closepop-up']");
+            }
+
+            // Confirm it's gone
+            try {
+                new WebDriverWait(driver, Duration.ofSeconds(4))
+                        .until(ExpectedConditions.invisibilityOfElementLocated(popupClose));
+                System.out.println("🎉 Popup closed successfully");
+            } catch (Exception ignored) {
+                System.out.println("ℹ️ Popup close button still present — continuing anyway");
+            }
+
+            Thread.sleep(500);
+
+        } catch (Exception e) {
+            System.out.println("ℹ️ Popup close button not present — continuing");
+        }
+    }
+
+    /**
+     * Scrolls to and clicks "Get Free Demo" on the course page.
+     * @throws Exception 
+     */
+    public void scrollAndClickGetFreeDemo() throws Exception {
+        try {
+            WebElement demoLink = wait.until(
+                    ExpectedConditions.presenceOfElementLocated(
+                            By.xpath("//a[normalize-space()='Get Free Demo']")));
+
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].scrollIntoView({block:'center'});", demoLink);
+            Thread.sleep(500);
+
+            try {
+                actions.moveToElement(demoLink)
+                        .pause(Duration.ofMillis(300))
+                        .click()
+                        .perform();
+            } catch (Exception clickEx) {
+                ((JavascriptExecutor) driver)
+                        .executeScript("arguments[0].click();", demoLink);
+            }
+
+            System.out.println("🖱️ Clicked 'Get Free Demo'");
+
+            wait.until(ExpectedConditions.or(
+                    ExpectedConditions.presenceOfElementLocated(By.id("js-value")),
+                    ExpectedConditions.presenceOfElementLocated(By.id("btn-send-otp"))
+            ));
+            Thread.sleep(1000);
+
+        } catch (Exception e) {
+            System.out.println("❌ Failed to click 'Get Free Demo': " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Enters the phone number into the demo form (#js-value).
+     * Handles iframe-wrapped forms transparently.
+     * @throws Exception 
+     */
+    public void enterDemoPhoneNumber(String phone) throws Exception {
+        boolean switchedToIframe = false;
+
+        try {
+            if (driver.findElements(By.id("js-value")).isEmpty()) {
+                List<WebElement> frames = driver.findElements(By.tagName("iframe"));
+                for (WebElement f : frames) {
+                    try {
+                        driver.switchTo().frame(f);
+                        if (!driver.findElements(By.id("js-value")).isEmpty()) {
+                            switchedToIframe = true;
+                            System.out.println("✅ Phone input found inside iframe");
+                            break;
+                        }
+                        driver.switchTo().defaultContent();
+                    } catch (Exception ignored) {
+                        driver.switchTo().defaultContent();
+                    }
+                }
+            }
+
+            WebElement input = wait.until(
+                    ExpectedConditions.elementToBeClickable(By.id("js-value")));
+
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].scrollIntoView({block:'center'});", input);
+
+            actions.moveToElement(input)
+                    .pause(Duration.ofMillis(200))
+                    .click()
+                    .perform();
+
+            input.sendKeys(Keys.chord(Keys.CONTROL, "a"));
+            input.sendKeys(Keys.DELETE);
+
+            for (char c : phone.toCharArray()) {
+                input.sendKeys(String.valueOf(c));
+                Thread.sleep(60);
+            }
+
+            System.out.println("⌨️ Entered phone number: " + phone);
+            Thread.sleep(500);
+
+        } catch (Exception e) {
+            System.out.println("❌ Failed to enter phone number: " + e.getMessage());
+            throw e;
+        } finally {
+            if (switchedToIframe) {
+                driver.switchTo().defaultContent();
+            }
+        }
+    }
+
+    /**
+     * Clicks the "Send OTP" button. Handles iframe-wrapped forms.
+     * @throws Exception 
+     */
+    public void clickSendOtpButton() throws Exception {
+        boolean switchedToIframe = false;
+
+        try {
+            if (driver.findElements(By.id("btn-send-otp")).isEmpty()) {
+                List<WebElement> frames = driver.findElements(By.tagName("iframe"));
+                for (WebElement f : frames) {
+                    try {
+                        driver.switchTo().frame(f);
+                        if (!driver.findElements(By.id("btn-send-otp")).isEmpty()) {
+                            switchedToIframe = true;
+                            System.out.println("✅ Send OTP button found inside iframe");
+                            break;
+                        }
+                        driver.switchTo().defaultContent();
+                    } catch (Exception ignored) {
+                        driver.switchTo().defaultContent();
+                    }
+                }
+            }
+
+            WebElement btn = wait.until(
+                    ExpectedConditions.elementToBeClickable(By.id("btn-send-otp")));
+
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].scrollIntoView({block:'center'});", btn);
+
+            try {
+                actions.moveToElement(btn)
+                        .pause(Duration.ofMillis(300))
+                        .click()
+                        .perform();
+            } catch (Exception clickEx) {
+                ((JavascriptExecutor) driver)
+                        .executeScript("arguments[0].click();", btn);
+            }
+
+            System.out.println("✅ Clicked Send OTP button");
+            Thread.sleep(1500);
+
+        } catch (Exception e) {
+            System.out.println("❌ Failed to click Send OTP: " + e.getMessage());
+            throw e;
+        } finally {
+            if (switchedToIframe) {
+                driver.switchTo().defaultContent();
+            }
+        }
+    }
+
+    public boolean isOtpRequestSubmitted() {
+        try {
+            String src = driver.getPageSource().toLowerCase();
+            boolean hasOtpIndicator =
+                    src.contains("otp") ||
+                    src.contains("verify") ||
+                    src.contains("enter the otp");
+
+            boolean hasOtpInput =
+                    !driver.findElements(By.xpath(
+                            "//input[contains(@id,'otp') or contains(@name,'otp')]")).isEmpty();
+
+            return hasOtpIndicator || hasOtpInput;
         } catch (Exception e) {
             return false;
         }

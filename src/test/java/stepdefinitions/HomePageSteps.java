@@ -100,4 +100,48 @@ public class HomePageSteps {
                 "❌ Search results page not visible after clicking Exam chip");
         System.out.println("🎉 Search flow completed successfully");
     }
+
+    // -------- Free Demo Flow --------
+
+    @When("I scroll and click the {string} card")
+    public void i_scroll_and_click_the_card(String cardText) throws Exception {
+        homePage.scrollAndClickCourseCard(cardText);
+    }
+
+    @When("I close the popup on the course page")
+    public void i_close_the_popup_on_the_course_page() throws InterruptedException {
+        homePage.closePopupIfPresent();
+    }
+
+    @When("I scroll and click {string}")
+    public void i_scroll_and_click(String linkText) throws Exception {
+        if (linkText.equalsIgnoreCase("Get Free Demo")) {
+            // Popup may re-appear during scroll — try closing again
+            homePage.closePopupIfPresent();
+            homePage.scrollAndClickGetFreeDemo();
+        } else {
+            throw new IllegalArgumentException("Unsupported link: " + linkText);
+        }
+    }
+
+    @When("I enter phone number {string} in the demo form")
+    public void i_enter_phone_number_in_the_demo_form(String phone) throws Exception {
+        homePage.enterDemoPhoneNumber(phone);
+    }
+
+    @When("I click the {string} button")
+    public void i_click_the_button(String buttonText) throws Exception {
+        if (buttonText.equalsIgnoreCase("Send OTP")) {
+            homePage.clickSendOtpButton();
+        } else {
+            throw new IllegalArgumentException("Unsupported button: " + buttonText);
+        }
+    }
+
+    @Then("the OTP request should be submitted")
+    public void the_otp_request_should_be_submitted() {
+        assertTrue(homePage.isOtpRequestSubmitted(),
+                "❌ OTP request was not submitted / no OTP indicator found");
+        System.out.println("🎉 Demo OTP flow completed");
+    }
 }
