@@ -4,6 +4,7 @@ import io.cucumber.java.After;
 import io.cucumber.java.Before;
 import io.cucumber.java.en.*;
 import org.openqa.selenium.WebDriver;
+//import org.testng.ITestContext;
 import pages.HomePage;
 import utils.ConfigReader;
 import utils.DriverFactory;
@@ -19,7 +20,20 @@ public class HomePageSteps {
 
     @Before
     public void setUp() {
-        driver = DriverFactory.initDriver();
+        
+        String browser = System.getProperty("browser");
+        if (browser == null || browser.isEmpty()) {
+            browser = ConfigReader.get("browser");
+        }
+        if (browser == null || browser.isEmpty()) {
+            browser = "chrome";
+        }
+
+        System.out.println("══════════════════════════════════════════════");
+        System.out.println("▶️  Starting scenario in browser: " + browser);
+        System.out.println("══════════════════════════════════════════════");
+
+        driver = DriverFactory.initDriver(browser);
         homePage = new HomePage(driver);
     }
 
@@ -104,19 +118,18 @@ public class HomePageSteps {
     // -------- Free Demo Flow --------
 
     @When("I scroll and click the {string} card")
-    public void i_scroll_and_click_the_card(String cardText) throws Exception {
+    public void i_scroll_and_click_the_card(String cardText) {
         homePage.scrollAndClickCourseCard(cardText);
     }
 
     @When("I close the popup on the course page")
-    public void i_close_the_popup_on_the_course_page() throws InterruptedException {
+    public void i_close_the_popup_on_the_course_page() {
         homePage.closePopupIfPresent();
     }
 
     @When("I scroll and click {string}")
     public void i_scroll_and_click(String linkText) throws Exception {
         if (linkText.equalsIgnoreCase("Get Free Demo")) {
-            // Popup may re-appear during scroll — try closing again
             homePage.closePopupIfPresent();
             homePage.scrollAndClickGetFreeDemo();
         } else {
