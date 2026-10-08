@@ -31,16 +31,23 @@ public class DriverFactory {
         System.out.println("🌐 Launching browser: " + currentBrowser);
 
         switch (currentBrowser) {
-            case "chrome":
-                WebDriverManager.chromedriver().setup();
-                ChromeOptions chromeOpts = new ChromeOptions();
+        case "chrome":
+            WebDriverManager.chromedriver().setup();
+            ChromeOptions chromeOpts = new ChromeOptions();
+            chromeOpts.addArguments("--disable-notifications");
+            chromeOpts.addArguments("--disable-blink-features=AutomationControlled");
+            chromeOpts.addArguments("--remote-allow-origins=*");
+            chromeOpts.setExperimentalOption("excludeSwitches",
+                    new String[]{"enable-automation"});
+            chromeOpts.setExperimentalOption("useAutomationExtension", false);
+            if (isRunningOnCI()) {
+                chromeOpts.addArguments("--headless=new");
+                chromeOpts.addArguments("--no-sandbox");
+                chromeOpts.addArguments("--disable-dev-shm-usage");
+                chromeOpts.addArguments("--window-size=1920,1080");
+            } else {
                 chromeOpts.addArguments("--start-maximized");
-                chromeOpts.addArguments("--disable-notifications");
-                chromeOpts.addArguments("--disable-blink-features=AutomationControlled");
-                chromeOpts.addArguments("--remote-allow-origins=*");
-                chromeOpts.setExperimentalOption("excludeSwitches",
-                        new String[]{"enable-automation"});
-                chromeOpts.setExperimentalOption("useAutomationExtension", false);
+            }
                 driver = new ChromeDriver(chromeOpts);
                 break;
 
@@ -59,20 +66,23 @@ public class DriverFactory {
             case "firefox":
                 WebDriverManager.firefoxdriver().setup();
                 FirefoxOptions firefoxOpts = new FirefoxOptions();
-                firefoxOpts.addArguments("--width=1920");
-                firefoxOpts.addArguments("--height=1080");
-               
+                if (isRunningOnCI()) {
+                    firefoxOpts.addArguments("-headless");
+                    firefoxOpts.addArguments("--width=1920");
+                    firefoxOpts.addArguments("--height=1080");
+                }
                 driver = new FirefoxDriver(firefoxOpts);
-                driver.manage().window().maximize();
+                if (!isRunningOnCI()) {
+                    driver.manage().window().maximize();
+                }
                 break;
-
             default:
                 throw new IllegalArgumentException("Unsupported browser: " + browser);
         }
 
-        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10));
-        driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(40));
-        driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(30));
+        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(15));
+        driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(60));
+        driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(45));
 
         actions = new Actions(driver);
 
@@ -96,6 +106,11 @@ public class DriverFactory {
 
     public static String getCurrentBrowser() {
         return currentBrowser;
+    }
+    
+    private static boolean isRunningOnCI() {
+        
+        return "true".equalsIgnoreCase(System.getenv("CI"));
     }
 
     public static void quitDriver() {
