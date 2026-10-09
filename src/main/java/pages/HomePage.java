@@ -50,9 +50,20 @@ public class HomePage {
     @FindBy(id = "btn-send-otp")
     private WebElement sendOtpButton;
 
+    // -------- Header dropdowns (test: header) --------
+
+    private static final String[] HEADER_DROPDOWN_IDS = {
+            "previous_year_paper_dropdown",
+            "exams_dropdown",
+            "online_course_dropdown",
+            "free_mocktest_dropdown",
+            "navbarDropdowng",
+            "dailyquiz"
+    };
+
     public HomePage(WebDriver driver) {
         this.driver = driver;
-        this.wait = new WebDriverWait(driver, Duration.ofSeconds(30));
+        this.wait = new WebDriverWait(driver, Duration.ofSeconds(20));
         this.actions = new Actions(driver);
         PageFactory.initElements(driver, this);
     }
@@ -93,7 +104,7 @@ public class HomePage {
     }
 
     // =========================================================
-    // Online Course dropdown
+    // Online Course dropdown (used by @dropdown)
     // =========================================================
 
     public void hoverOnOnlineCourseDropdown() throws Exception {
@@ -404,11 +415,6 @@ public class HomePage {
     // Free Demo Flow
     // =========================================================
 
-    /**
-     * Scrolls to a course card matching the given text on the home page and clicks it.
-     * Uses the nearest anchor ancestor when available.
-     * @throws Exception 
-     */
     public void scrollAndClickCourseCard(String cardText) {
         try {
             By exact = By.xpath("//p[normalize-space()='" + cardText + "']");
@@ -430,15 +436,12 @@ public class HomePage {
                     "arguments[0].scrollIntoView({block:'center'});", card);
             Thread.sleep(700);
 
-            // Prefer the closest anchor; fall back to the <p> itself
             WebElement clickTarget = card;
             try {
                 WebElement anchor = card.findElement(By.xpath("./ancestor::a[1]"));
                 if (anchor.isDisplayed()) clickTarget = anchor;
             } catch (Exception ignored) { }
 
-            // Snapshot current window handles + URL before clicking
-            String originalWindow = driver.getWindowHandle();
             Set<String> windowsBefore = driver.getWindowHandles();
             String urlBefore = driver.getCurrentUrl();
 
@@ -454,12 +457,10 @@ public class HomePage {
 
             System.out.println("🖱️ Clicked course card: " + cardText);
 
-            // Wait briefly for either: (a) new tab, or (b) URL change
             new WebDriverWait(driver, Duration.ofSeconds(10)).until(d ->
                     d.getWindowHandles().size() > windowsBefore.size()
                             || !d.getCurrentUrl().equals(urlBefore));
 
-            // Case 1: A new tab/window opened → switch to it
             Set<String> windowsAfter = driver.getWindowHandles();
             if (windowsAfter.size() > windowsBefore.size()) {
                 for (String handle : windowsAfter) {
@@ -470,45 +471,33 @@ public class HomePage {
                     }
                 }
             } else {
-                // Case 2: Same tab, URL changed
                 System.out.println("➡️ Navigated in same tab: " + driver.getCurrentUrl());
             }
 
-            // Bring the window to front and settle
             driver.switchTo().window(driver.getWindowHandle());
             ((JavascriptExecutor) driver).executeScript("window.focus();");
             Thread.sleep(1500);
 
         } catch (Exception e) {
             System.out.println("⚠️ Card click did not lead to a new page: " + e.getMessage());
-            // Don't throw — continue the scenario; subsequent steps will validate state
         }
     }
 
     /**
-     * Closes any popup/modal that appears on the course page.
-     * Strategy (in order):
-     *   1. Wait up to 6s for a visible modal container.
-     *   2. Press ESC on the body.
-     *   3. Try a broad set of close-button selectors (button, span, i, img, a).
-     *   4. JS-click each candidate (bypasses overlay interception).
-     *   5. Confirm the modal is gone; retry up to 3 times.
-     *   6. Fallback: hide modal nodes directly via JS.
-     * @throws InterruptedException 
+     * Closes the popup/modal on the course page.
+     * Verified locator on ixamBee: //button[@id='closepop-up']
      */
     public void closePopupIfPresent() {
         JavascriptExecutor js = (JavascriptExecutor) driver;
         By popupClose = By.xpath("//button[@id='closepop-up']");
 
         try {
-            // Wait for the close button to become clickable
             WebElement closeBtn = new WebDriverWait(driver, Duration.ofSeconds(8))
                     .until(ExpectedConditions.elementToBeClickable(popupClose));
 
             js.executeScript("arguments[0].scrollIntoView({block:'center'});", closeBtn);
             Thread.sleep(300);
 
-            // Preferred: Actions click
             try {
                 actions.moveToElement(closeBtn)
                         .pause(Duration.ofMillis(200))
@@ -516,12 +505,10 @@ public class HomePage {
                         .perform();
                 System.out.println("✅ (Actions) Closed popup via //button[@id='closepop-up']");
             } catch (Exception actionEx) {
-                // Fallback: JS click (handles overlay interception)
                 js.executeScript("arguments[0].click();", closeBtn);
                 System.out.println("✅ (JS click) Closed popup via //button[@id='closepop-up']");
             }
 
-            // Confirm it's gone
             try {
                 new WebDriverWait(driver, Duration.ofSeconds(4))
                         .until(ExpectedConditions.invisibilityOfElementLocated(popupClose));
@@ -537,10 +524,6 @@ public class HomePage {
         }
     }
 
-    /**
-     * Scrolls to and clicks "Get Free Demo" on the course page.
-     * @throws Exception 
-     */
     public void scrollAndClickGetFreeDemo() throws Exception {
         try {
             WebElement demoLink = wait.until(
@@ -575,11 +558,6 @@ public class HomePage {
         }
     }
 
-    /**
-     * Enters the phone number into the demo form (#js-value).
-     * Handles iframe-wrapped forms transparently.
-     * @throws Exception 
-     */
     public void enterDemoPhoneNumber(String phone) throws Exception {
         boolean switchedToIframe = false;
 
@@ -633,10 +611,6 @@ public class HomePage {
         }
     }
 
-    /**
-     * Clicks the "Send OTP" button. Handles iframe-wrapped forms.
-     * @throws Exception 
-     */
     public void clickSendOtpButton() throws Exception {
         boolean switchedToIframe = false;
 
@@ -700,6 +674,134 @@ public class HomePage {
                             "//input[contains(@id,'otp') or contains(@name,'otp')]")).isEmpty();
 
             return hasOtpIndicator || hasOtpInput;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // =========================================================
+    // Header dropdowns + multi-tab flow (@header)
+    // =========================================================
+
+    /**
+     * Hovers on each header dropdown toggle one by one using Actions.
+     * If hover alone doesn't reveal a menu, falls back to a click.
+     */
+    public void hoverAllHeaderDropdowns() {
+        JavascriptExecutor js = (JavascriptExecutor) driver;
+
+        for (String id : HEADER_DROPDOWN_IDS) {
+            try {
+                By toggle = By.id(id);
+                WebElement el = new WebDriverWait(driver, Duration.ofSeconds(6))
+                        .until(ExpectedConditions.presenceOfElementLocated(toggle));
+
+                js.executeScript("arguments[0].scrollIntoView({block:'center'});", el);
+                Thread.sleep(300);
+
+                actions.moveToElement(el)
+                       .pause(Duration.ofMillis(600))
+                       .perform();
+
+                System.out.println("🖱️ Hovered on header dropdown: " + id);
+                Thread.sleep(700);
+
+                // If hover didn't reveal anything new, try a click
+                Long visibleAnchors = (Long) js.executeScript(
+                        "const t = document.getElementById(arguments[0]);" +
+                        "if (!t) return 0;" +
+                        "const p = t.parentElement;" +
+                        "if (!p) return 0;" +
+                        "return Array.from(p.querySelectorAll('a')).filter(a => a.offsetParent !== null).length;",
+                        id);
+
+                if (visibleAnchors != null && visibleAnchors <= 1) {
+                    System.out.println("ℹ️ Hover didn't reveal menu for '" + id + "' — trying click");
+                    try {
+                        actions.moveToElement(el).pause(Duration.ofMillis(200)).click().perform();
+                    } catch (Exception clickEx) {
+                        js.executeScript("arguments[0].click();", el);
+                    }
+                    Thread.sleep(700);
+                }
+
+            } catch (Exception e) {
+                System.out.println("⚠️ Skipping dropdown '" + id + "': " + e.getMessage());
+            }
+        }
+        System.out.println("✅ Finished hovering all header dropdowns");
+    }
+
+    /**
+     * Clicks the given link text and opens it in a NEW TAB, switching to it.
+     * Forces target="_blank" via JS before clicking for maximum reliability.
+     * @throws Exception 
+     */
+    public void openLinkInNewTab(String linkText) throws Exception {
+        try {
+            By locator = By.xpath("//a[normalize-space()='" + linkText + "']");
+            WebElement link = new WebDriverWait(driver, Duration.ofSeconds(10))
+                    .until(ExpectedConditions.presenceOfElementLocated(locator));
+
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].scrollIntoView({block:'center'});", link);
+            Thread.sleep(400);
+
+            String originalWindow = driver.getWindowHandle();
+            Set<String> windowsBefore = driver.getWindowHandles();
+
+            // Ensure the link opens in a new tab
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].setAttribute('target','_blank');", link);
+
+            try {
+                actions.moveToElement(link)
+                       .pause(Duration.ofMillis(200))
+                       .click()
+                       .perform();
+            } catch (Exception e) {
+                ((JavascriptExecutor) driver)
+                        .executeScript("arguments[0].click();", link);
+            }
+
+            System.out.println("🖱️ Clicked link: " + linkText);
+
+            // Wait for a new tab
+            new WebDriverWait(driver, Duration.ofSeconds(10)).until(d ->
+                    d.getWindowHandles().size() > windowsBefore.size());
+
+            // Switch to the new tab
+            Set<String> windowsAfter = driver.getWindowHandles();
+            for (String handle : windowsAfter) {
+                if (!windowsBefore.contains(handle)) {
+                    driver.switchTo().window(handle);
+                    System.out.println("➡️ Switched to new tab: " + driver.getCurrentUrl());
+                    break;
+                }
+            }
+
+            Thread.sleep(1500);
+
+            // Return focus to the original tab so subsequent steps operate from the home page
+            if (driver.getWindowHandles().contains(originalWindow)) {
+                driver.switchTo().window(originalWindow);
+                System.out.println("↩️ Switched back to original tab");
+            }
+
+        } catch (Exception e) {
+            System.out.println("❌ Failed to open '" + linkText + "' in new tab: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Returns true if at least 3 tabs (1 original + 2 new) are open.
+     */
+    public boolean areBothTabsOpen() {
+        try {
+            Set<String> handles = driver.getWindowHandles();
+            System.out.println("📑 Open tabs: " + handles.size());
+            return handles.size() >= 3;
         } catch (Exception e) {
             return false;
         }

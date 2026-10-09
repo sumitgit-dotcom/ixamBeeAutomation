@@ -4,7 +4,6 @@ import io.cucumber.java.After;
 import io.cucumber.java.Before;
 import io.cucumber.java.en.*;
 import org.openqa.selenium.WebDriver;
-//import org.testng.ITestContext;
 import pages.HomePage;
 import utils.ConfigReader;
 import utils.DriverFactory;
@@ -20,7 +19,6 @@ public class HomePageSteps {
 
     @Before
     public void setUp() {
-        
         String browser = System.getProperty("browser");
         if (browser == null || browser.isEmpty()) {
             browser = ConfigReader.get("browser");
@@ -156,5 +154,24 @@ public class HomePageSteps {
         assertTrue(homePage.isOtpRequestSubmitted(),
                 "❌ OTP request was not submitted / no OTP indicator found");
         System.out.println("🎉 Demo OTP flow completed");
+    }
+
+    // -------- Header dropdowns + multi-tab flow --------
+
+    @When("I hover on all header dropdowns")
+    public void i_hover_on_all_header_dropdowns() {
+        homePage.hoverAllHeaderDropdowns();
+    }
+
+    @When("I open {string} in a new tab")
+    public void i_open_in_a_new_tab(String linkText) throws Exception {
+        homePage.openLinkInNewTab(linkText);
+    }
+
+    @Then("both new tabs should be open")
+    public void both_new_tabs_should_be_open() {
+        assertTrue(homePage.areBothTabsOpen(),
+                "❌ Expected at least 3 tabs (1 original + 2 new) but found fewer");
+        System.out.println("🎉 Multi-tab flow completed");
     }
 }

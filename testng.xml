@@ -1,23 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
-<suite name="ixamBee Cross-Browser Suite" verbose="1" preserve-order="true">
-
-    <test name="demo-chrome">
+<suite name="ixamBee Automation Suite" verbose="1">
+    <test name="ixamBee Tests">
         <classes>
             <class name="runners.TestRunner"/>
         </classes>
     </test>
-
-    <test name="demo-edge">
-        <classes>
-            <class name="runners.TestRunner"/>
-        </classes>
-    </test>
-
-    <test name="demo-firefox">
-        <classes>
-            <class name="runners.TestRunner"/>
-        </classes>
-    </test>
-
 </suite>

@@ -30,3 +30,12 @@ Feature: ixamBee Home Page
     And I enter phone number "8871220199" in the demo form
     And I click the "Send OTP" button
     Then the OTP request should be submitted
+    
+    
+    @header
+  Scenario: header
+    Given I open the ixamBee home page
+    When I hover on all header dropdowns
+    And I open "All Courses" in a new tab
+    And I open "Testimonials" in a new tab
+    Then both new tabs should be open
