@@ -87,11 +87,10 @@ public class HomePageSteps {
 
     // -------- Search flow (@search) --------
 
-    @When("I click the header search bar")
-    public void i_click_the_header_search_bar() throws Exception {
-        homePage.clickHeaderSearchBar();
+    @When("I open the search page")
+    public void i_open_the_search_page() throws Exception {
+        homePage.openSearchPage();
     }
-
     @When("I type {string} in the search field")
     public void i_type_in_the_search_field(String query) throws Exception {
         homePage.typeInSearchField(query);
@@ -100,7 +99,8 @@ public class HomePageSteps {
     @When("I click the {string} chip")
     public void i_click_the_chip(String chipName) throws Exception {
         if (chipName.equalsIgnoreCase("Exam")) {
-            homePage.clickExamChip();
+            // Works from the search page and from a course-results page
+            homePage.clickExamChipOnResults();
         } else {
             throw new IllegalArgumentException("Unsupported chip: " + chipName);
         }
@@ -212,5 +212,28 @@ public class HomePageSteps {
         assertTrue(homePage.isTryMePackagePageOpen(),
                 "❌ Try Me Package page not detected after click");
         System.out.println("🎉 Course flow completed");
+    }
+    
+    // -------- Syllabus Flow (@syllabus) --------
+
+    @When("I click the {string} link")
+    public void i_click_the_link(String linkText) throws Exception {
+        if (linkText.equalsIgnoreCase("# Bank Po Course")) {
+            homePage.clickBankPoCourseLink();
+        } else {
+            throw new IllegalArgumentException("Unsupported link: " + linkText);
+        }
+    }
+
+    @When("I click the syllabus result link")
+    public void i_click_the_syllabus_result_link() throws Exception {
+        homePage.clickSyllabusResultLink();
+    }
+
+    @Then("the syllabus page should be open")
+    public void the_syllabus_page_should_be_open() {
+        assertTrue(homePage.isSyllabusPageOpen(),
+                "❌ Syllabus page not detected after clicking result link");
+        System.out.println("🎉 Syllabus flow completed");
     }
 }

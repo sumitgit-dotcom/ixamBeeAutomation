@@ -1,6 +1,7 @@
 package pages;
 
 import org.openqa.selenium.By;
+
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
@@ -10,6 +11,9 @@ import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+//import java.util.List;
+import java.net.URLEncoder;
+
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -1022,7 +1026,7 @@ public class HomePage {
 
         } catch (Exception e) {
             System.out.println("❌ Failed to click 'NIACL Assistant' link: " + e.getMessage());
-            throw e;
+             throw e;
         }
     }
 
@@ -1131,4 +1135,387 @@ public class HomePage {
             return false;
         }
     }
+    
+    public void clickBankPoCourseLink() throws Exception {
+        try {
+        	By linkLocator = By.xpath(
+        	        "//*[self::a or self::span or self::div or self::button]" +
+        	        "[contains(translate(normalize-space(), " +
+        	        "'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')," +
+        	        "'bank po course')]");
+
+            WebElement link = new WebDriverWait(driver, Duration.ofSeconds(25))
+                    .until(ExpectedConditions.presenceOfElementLocated(linkLocator));
+
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].scrollIntoView({block:'center'});", link);
+            Thread.sleep(700);
+
+            // Prefer an enclosing <a> if the matched node is a span/div
+            WebElement clickTarget = link;
+            try {
+                WebElement anchor = link.findElement(By.xpath("./ancestor-or-self::a[1]"));
+                if (anchor.isDisplayed()) clickTarget = anchor;
+            } catch (Exception ignored) { }
+
+            String startUrl = driver.getCurrentUrl();
+            Set<String> windowsBefore = driver.getWindowHandles();
+
+            try {
+                actions.moveToElement(clickTarget)
+                        .pause(Duration.ofMillis(500))
+                        .click()
+                        .perform();
+                System.out.println("🖱️ (Actions) Clicked '# Bank Po Course'");
+            } catch (Exception e) {
+                ((JavascriptExecutor) driver)
+                        .executeScript("arguments[0].click();", clickTarget);
+                System.out.println("🖱️ (JS click) Clicked '# Bank Po Course'");
+            }
+
+            // Wait for URL change or new tab — but tolerate the case where the
+            // site filters in place without navigating
+            try {
+                new WebDriverWait(driver, Duration.ofSeconds(10)).until(d ->
+                        d.getWindowHandles().size() > windowsBefore.size()
+                                || !d.getCurrentUrl().equals(startUrl));
+            } catch (Exception ignored) {
+                System.out.println("ℹ️ No navigation after click — continuing");
+            }
+
+            Set<String> windowsAfter = driver.getWindowHandles();
+            if (windowsAfter.size() > windowsBefore.size()) {
+                for (String handle : windowsAfter) {
+                    if (!windowsBefore.contains(handle)) {
+                        driver.switchTo().window(handle);
+                        System.out.println("➡️ Switched to new tab: " + driver.getCurrentUrl());
+                        break;
+                    }
+                }
+            } else if (!driver.getCurrentUrl().equals(startUrl)) {
+                System.out.println("➡️ Navigated in same tab: " + driver.getCurrentUrl());
+            }
+
+            Thread.sleep(1500);
+
+        } catch (Exception e) {
+            System.out.println("❌ Failed to click '# Bank Po Course': " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Clicks the Exam chip (#chip-exam) on the current results page.
+     * Same locator as the search flow, but tolerates being called from
+     * a course-results page where the chip may render slightly later.
+     * @throws Exception 
+     */
+    public void clickExamChipOnResults() throws Exception {
+        try {
+            WebElement chip = new WebDriverWait(driver, Duration.ofSeconds(15))
+                    .until(ExpectedConditions.presenceOfElementLocated(
+                            By.id("chip-exam")));
+
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].scrollIntoView({block:'center'});", chip);
+            Thread.sleep(400);
+
+            try {
+                actions.moveToElement(chip)
+                        .pause(Duration.ofMillis(300))
+                        .click()
+                        .perform();
+            } catch (Exception e) {
+                ((JavascriptExecutor) driver)
+                        .executeScript("arguments[0].click();", chip);
+            }
+
+            System.out.println("✅ Clicked Exam chip");
+            Thread.sleep(1500);
+
+        } catch (Exception e) {
+            System.out.println("❌ Failed to click Exam chip: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Clicks the syllabus result link matching the given text.
+     * Falls back to clicking the enclosing <a> if the <div> is a wrapper.
+     * Handles same-tab or new-tab navigation.
+     * @throws Exception 
+     */
+    /**
+     * Clicks the syllabus result whose text is:
+     * "IBPS RRB PO Scale 1 Syllabus & Exam Pattern 2026- Check Subject Wise Exam Syllabus"
+     *
+     * Strategy:
+     *   1. Find the exact div by normalize-space() text.
+     *   2. Scroll it into view (inside its own scrollable ancestor if needed).
+     *   3. Try clicking the div itself.
+     *   4. If no navigation occurs, try the nearest ancestor <a>.
+     *   5. If still no navigation, try JS click with a synthetic MouseEvent.
+     *   6. Handle new-tab navigation and switch to it.
+     * @throws Exception 
+     */
+    public void clickSyllabusResultLink() throws Exception {
+        JavascriptExecutor js = (JavascriptExecutor) driver;
+
+        try {
+            // ---------- 1. WAIT FOR FILTER RESULTS TO APPEAR ----------
+            // The filter panel (#search-filters) is populated after a chip click.
+            // Wait for at least one result card OR the target div itself.
+            System.out.println("⏳ Waiting for filter results to appear...");
+
+            By resultsPresence = By.xpath(
+                    "//*[contains(@class,'result') or contains(@class,'course-card') or contains(@class,'list-item')]" +
+                    " | //div[normalize-space()='IBPS RRB PO Scale 1 Syllabus & Exam Pattern 2026- Check Subject Wise Exam Syllabus']");
+
+            try {
+                new WebDriverWait(driver, Duration.ofSeconds(20))
+                        .until(ExpectedConditions.presenceOfElementLocated(resultsPresence));
+                System.out.println("✅ Filter results rendered");
+            } catch (Exception e) {
+                System.out.println("⚠️ Filter results wait timed out — continuing");
+            }
+
+            // Give the panel a moment to finish animating
+            Thread.sleep(1500);
+
+            // ---------- 2. LOCATE THE TARGET DIV ----------
+            By targetLocator = By.xpath(
+                    "//div[normalize-space()='IBPS RRB PO Scale 1 Syllabus & Exam Pattern 2026- Check Subject Wise Exam Syllabus']");
+
+            WebElement target = new WebDriverWait(driver, Duration.ofSeconds(20))
+                    .until(ExpectedConditions.presenceOfElementLocated(targetLocator));
+
+            System.out.println("✅ Syllabus result located");
+
+            // ---------- 3. SCROLL ----------
+            // Scroll the div's own scrollable ancestor (in case the results
+            // are inside a scrolling panel), then the browser viewport.
+            js.executeScript(
+                    "const item = arguments[0];" +
+                    "let n = item.parentElement;" +
+                    "while (n && n !== document.body) {" +
+                    "  if (n.scrollHeight > n.clientHeight + 5) {" +
+                    "    n.scrollTop = item.offsetTop - n.clientHeight / 2;" +
+                    "    break;" +
+                    "  }" +
+                    "  n = n.parentElement;" +
+                    "}", target);
+
+            js.executeScript("arguments[0].scrollIntoView({block:'center'});", target);
+            Thread.sleep(700);
+            System.out.println("⬇️ Scrolled to syllabus result");
+
+            // ---------- 4. HOVER + CLICK (Actions) ----------
+            String startUrl = driver.getCurrentUrl();
+            Set<String> windowsBefore = driver.getWindowHandles();
+            boolean navigated = false;
+
+            // 4a. Actions hover + click on the div
+            try {
+                actions.moveToElement(target)
+                       .pause(Duration.ofMillis(800))
+                       .perform();   // hover first
+                System.out.println("🖱️ Hovered over syllabus div");
+
+                actions.moveToElement(target)
+                       .pause(Duration.ofMillis(300))
+                       .click()
+                       .perform();
+                System.out.println("🖱️ (Actions) Clicked syllabus div");
+                navigated = waitForChange11(startUrl, windowsBefore, 6);
+            } catch (Exception ignored) { }
+
+            // 4b. JS click on the div
+            if (!navigated) {
+                js.executeScript("arguments[0].click();", target);
+                System.out.println("🖱️ (JS click) Clicked syllabus div");
+                navigated = waitForChange11(startUrl, windowsBefore, 6);
+            }
+
+            // 4c. Hover + click on the enclosing <a>, if any
+            if (!navigated) {
+                try {
+                    WebElement anchor = target.findElement(By.xpath("./ancestor::a[1]"));
+                    if (anchor.isDisplayed()) {
+                        System.out.println("🎯 Falling back to enclosing <a>");
+                        actions.moveToElement(anchor)
+                               .pause(Duration.ofMillis(500))
+                               .click()
+                               .perform();
+                        navigated = waitForChange11(startUrl, windowsBefore, 8);
+                    }
+                } catch (Exception ignored) { }
+            }
+
+            // 4d. Synthetic MouseEvent sequence
+            if (!navigated) {
+                System.out.println("🎯 Dispatching synthetic MouseEvent sequence");
+                js.executeScript(
+                        "const el = arguments[0];" +
+                        "['mouseover','mousemove','mousedown','mouseup','click']" +
+                        "  .forEach(t => el.dispatchEvent(new MouseEvent(t, " +
+                        "     {bubbles:true, cancelable:true, view:window})));",
+                        target);
+                navigated = waitForChange11(startUrl, windowsBefore, 8);
+            }
+
+            // ---------- 5. HANDLE NEW TAB ----------
+            Set<String> windowsAfter = driver.getWindowHandles();
+            if (windowsAfter.size() > windowsBefore.size()) {
+                for (String handle : windowsAfter) {
+                    if (!windowsBefore.contains(handle)) {
+                        driver.switchTo().window(handle);
+                        System.out.println("➡️ Switched to new tab: " + driver.getCurrentUrl());
+                        break;
+                    }
+                }
+            } else if (!driver.getCurrentUrl().equals(startUrl)) {
+                System.out.println("➡️ Navigated in same tab: " + driver.getCurrentUrl());
+            } else {
+                System.out.println("ℹ️ No navigation after syllabus click — continuing");
+            }
+
+            Thread.sleep(1500);
+
+        } catch (Exception e) {
+            System.out.println("❌ Failed to click syllabus link: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Waits up to {@code seconds} for the URL to change or a new tab to appear.
+     */
+    private boolean waitForChange11(String startUrl, Set<String> windowsBefore, int seconds) {
+        try {
+            new WebDriverWait(driver, Duration.ofSeconds(seconds)).until(d ->
+                    d.getWindowHandles().size() > windowsBefore.size()
+                            || !d.getCurrentUrl().equals(startUrl));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Waits up to {@code seconds} for the URL to change or a new tab to appear.
+     */
+    private boolean waitForChange1(String startUrl, Set<String> windowsBefore, int seconds) {
+        try {
+            new WebDriverWait(driver, Duration.ofSeconds(seconds)).until(d ->
+                    d.getWindowHandles().size() > windowsBefore.size()
+                            || !d.getCurrentUrl().equals(startUrl));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Clicks the given element via Actions and returns true if navigation
+     * (URL change or new tab) is detected within the timeout.
+     */
+    private boolean tryClickAndDetectChange(WebElement el,
+                                            String startUrl,
+                                            Set<String> windowsBefore,
+                                            String label) {
+        try {
+            actions.moveToElement(el)
+                    .pause(Duration.ofMillis(300))
+                    .click()
+                    .perform();
+            System.out.println("🖱️ " + label + " dispatched");
+        } catch (Exception e) {
+            System.out.println("⚠️ " + label + " failed: " + e.getMessage());
+            return false;
+        }
+        return waitForChange11(startUrl, windowsBefore, 6);
+    }
+
+    /**
+     * Waits up to {@code seconds} for the URL to change or a new tab to appear.
+     */
+    private boolean waitForChange(String startUrl, Set<String> windowsBefore, int seconds) {
+        try {
+            new WebDriverWait(driver, Duration.ofSeconds(seconds)).until(d ->
+                    d.getWindowHandles().size() > windowsBefore.size()
+                            || !d.getCurrentUrl().equals(startUrl));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Returns true if the syllabus page appears to be loaded.
+     * Checks URL for "syllabus"/"exam-pattern" AND page content hints.
+     */
+    public boolean isSyllabusPageOpen() {
+        try {
+            String url = driver.getCurrentUrl().toLowerCase();
+            String src = driver.getPageSource().toLowerCase();
+
+            boolean urlMatch = url.contains("syllabus") || url.contains("exam-pattern");
+            boolean contentMatch = src.contains("syllabus")
+                    && (src.contains("ibps") || src.contains("rrb") || src.contains("exam pattern"));
+
+            return urlMatch || contentMatch;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Navigates directly to the search-results page.
+     * The header search bar on ixamBee is an inline autocomplete and does
+     * not always navigate — so this method sets the URL explicitly.
+     * @throws Exception 
+     */
+    public void openSearchPage() throws Exception {
+        try {
+            // ---------- Configure this after checking the real URL ----------
+            // Likely values: q, query, search, text, keyword
+            String queryParam = "q";
+            String queryValue = "bank po course";
+
+            String searchUrl = "https://www.ixambee.com/search?"
+                    + queryParam + "="
+                    + java.net.URLEncoder.encode(queryValue, "UTF-8");
+
+            System.out.println("➡️ Navigating to: " + searchUrl);
+            driver.get(searchUrl);
+
+            wait.until(webDriver ->
+                    ((JavascriptExecutor) webDriver)
+                            .executeScript("return document.readyState")
+                            .equals("complete"));
+
+            // Wait for the search input OR the results container to be present
+            new WebDriverWait(driver, Duration.ofSeconds(20)).until(
+                    ExpectedConditions.or(
+                            ExpectedConditions.presenceOfElementLocated(By.id("search-input")),
+                            ExpectedConditions.presenceOfElementLocated(
+                                    By.xpath("//*[contains(@class,'result')]"))
+                    ));
+
+            // Sanity check: are we still on a "no query" page?
+            String pageSrc = driver.getPageSource().toLowerCase();
+            if (pageSrc.contains("no search query")) {
+                System.out.println("⚠️ Search page still says 'no search query' — "
+                        + "param name might be wrong. Try q / query / search.");
+            }
+
+            System.out.println("✅ Search page loaded: " + driver.getCurrentUrl());
+            Thread.sleep(1500);
+
+        } catch (Exception e) {
+            System.out.println("❌ Failed to open search page: " + e.getMessage());
+            throw e;
+        }
+    }
+    
 }

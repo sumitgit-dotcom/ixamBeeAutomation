@@ -49,3 +49,13 @@ Feature: ixamBee Home Page
     And I scroll and click the NIACL Assistant link for online course 16
     And I scroll and click the "Try Me Package" button
     Then the Try Me Package page should be open
+    
+    
+    @syllabus
+  Scenario: syllabus
+    Given I open the ixamBee home page
+    When I open the search page
+    And I click the "# Bank Po Course" link
+    And I click the "Exam" chip
+    And I click the syllabus result link
+    Then the syllabus page should be open
