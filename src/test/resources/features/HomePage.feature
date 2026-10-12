@@ -39,3 +39,13 @@ Feature: ixamBee Home Page
     And I open "All Courses" in a new tab
     And I open "Testimonials" in a new tab
     Then both new tabs should be open
+    
+    
+      @course
+  Scenario: course
+    Given I open the ixamBee home page
+    When I click the "Online Course" dropdown
+    And I scroll and click the Insurance item in the online course dropdown
+    And I scroll and click the NIACL Assistant link for online course 16
+    And I scroll and click the "Try Me Package" button
+    Then the Try Me Package page should be open

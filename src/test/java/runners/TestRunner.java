@@ -14,7 +14,7 @@ import org.testng.annotations.DataProvider;
                 "json:target/cucumber-reports/cucumber.json"
         },
         monochrome = true,
-        tags = "@header"
+        tags = "@course"
 )
 public class TestRunner extends AbstractTestNGCucumberTests {
 

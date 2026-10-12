@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 public class HomePage {
@@ -23,15 +24,26 @@ public class HomePage {
     private final WebDriverWait wait;
     private final Actions actions;
 
-    // -------- Existing locators --------
+    // -------- Smoke / heading --------
 
     @FindBy(xpath = "//h1[contains(text(),'Govt. Job Prep')]")
     private WebElement mainHeading;
 
+    // -------- Header dropdowns --------
+
     @FindBy(id = "online_course_dropdown")
     private WebElement onlineCourseDropdown;
 
-    // -------- Search-flow locators --------
+    private static final String[] HEADER_DROPDOWN_IDS = {
+            "previous_year_paper_dropdown",
+            "exams_dropdown",
+            "online_course_dropdown",
+            "free_mocktest_dropdown",
+            "navbarDropdowng",
+            "dailyquiz"
+    };
+
+    // -------- Search flow --------
 
     @FindBy(xpath = "//div[@class='mb-3 header_search_bar d-none d-lg-block']//input[@id='input-drop-down-body']")
     private WebElement headerSearchBar;
@@ -42,7 +54,7 @@ public class HomePage {
     @FindBy(id = "chip-exam")
     private WebElement examChip;
 
-    // -------- Demo-flow locators --------
+    // -------- Demo flow --------
 
     @FindBy(id = "js-value")
     private WebElement demoPhoneInput;
@@ -50,16 +62,10 @@ public class HomePage {
     @FindBy(id = "btn-send-otp")
     private WebElement sendOtpButton;
 
-    // -------- Header dropdowns (test: header) --------
+    // -------- Course flow --------
 
-    private static final String[] HEADER_DROPDOWN_IDS = {
-            "previous_year_paper_dropdown",
-            "exams_dropdown",
-            "online_course_dropdown",
-            "free_mocktest_dropdown",
-            "navbarDropdowng",
-            "dailyquiz"
-    };
+    @FindBy(id = "try_me_package")
+    private WebElement tryMePackageButton;
 
     public HomePage(WebDriver driver) {
         this.driver = driver;
@@ -483,10 +489,6 @@ public class HomePage {
         }
     }
 
-    /**
-     * Closes the popup/modal on the course page.
-     * Verified locator on ixamBee: //button[@id='closepop-up']
-     */
     public void closePopupIfPresent() {
         JavascriptExecutor js = (JavascriptExecutor) driver;
         By popupClose = By.xpath("//button[@id='closepop-up']");
@@ -683,10 +685,6 @@ public class HomePage {
     // Header dropdowns + multi-tab flow (@header)
     // =========================================================
 
-    /**
-     * Hovers on each header dropdown toggle one by one using Actions.
-     * If hover alone doesn't reveal a menu, falls back to a click.
-     */
     public void hoverAllHeaderDropdowns() {
         JavascriptExecutor js = (JavascriptExecutor) driver;
 
@@ -699,14 +697,12 @@ public class HomePage {
                 js.executeScript("arguments[0].scrollIntoView({block:'center'});", el);
                 Thread.sleep(300);
 
-                actions.moveToElement(el)
-                       .pause(Duration.ofMillis(600))
-                       .perform();
+                actions.moveToElement(el).perform();
+                Thread.sleep(700);
 
                 System.out.println("🖱️ Hovered on header dropdown: " + id);
                 Thread.sleep(700);
 
-                // If hover didn't reveal anything new, try a click
                 Long visibleAnchors = (Long) js.executeScript(
                         "const t = document.getElementById(arguments[0]);" +
                         "if (!t) return 0;" +
@@ -732,11 +728,6 @@ public class HomePage {
         System.out.println("✅ Finished hovering all header dropdowns");
     }
 
-    /**
-     * Clicks the given link text and opens it in a NEW TAB, switching to it.
-     * Forces target="_blank" via JS before clicking for maximum reliability.
-     * @throws Exception 
-     */
     public void openLinkInNewTab(String linkText) throws Exception {
         try {
             By locator = By.xpath("//a[normalize-space()='" + linkText + "']");
@@ -750,15 +741,14 @@ public class HomePage {
             String originalWindow = driver.getWindowHandle();
             Set<String> windowsBefore = driver.getWindowHandles();
 
-            // Ensure the link opens in a new tab
             ((JavascriptExecutor) driver).executeScript(
                     "arguments[0].setAttribute('target','_blank');", link);
 
             try {
                 actions.moveToElement(link)
-                       .pause(Duration.ofMillis(200))
-                       .click()
-                       .perform();
+                        .pause(Duration.ofMillis(200))
+                        .click()
+                        .perform();
             } catch (Exception e) {
                 ((JavascriptExecutor) driver)
                         .executeScript("arguments[0].click();", link);
@@ -766,11 +756,9 @@ public class HomePage {
 
             System.out.println("🖱️ Clicked link: " + linkText);
 
-            // Wait for a new tab
             new WebDriverWait(driver, Duration.ofSeconds(10)).until(d ->
                     d.getWindowHandles().size() > windowsBefore.size());
 
-            // Switch to the new tab
             Set<String> windowsAfter = driver.getWindowHandles();
             for (String handle : windowsAfter) {
                 if (!windowsBefore.contains(handle)) {
@@ -782,7 +770,6 @@ public class HomePage {
 
             Thread.sleep(1500);
 
-            // Return focus to the original tab so subsequent steps operate from the home page
             if (driver.getWindowHandles().contains(originalWindow)) {
                 driver.switchTo().window(originalWindow);
                 System.out.println("↩️ Switched back to original tab");
@@ -794,14 +781,352 @@ public class HomePage {
         }
     }
 
-    /**
-     * Returns true if at least 3 tabs (1 original + 2 new) are open.
-     */
     public boolean areBothTabsOpen() {
         try {
             Set<String> handles = driver.getWindowHandles();
             System.out.println("📑 Open tabs: " + handles.size());
             return handles.size() >= 3;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // =========================================================
+    // Course Flow (@course)
+    // =========================================================
+
+    /**
+     * Clicks the Online Course dropdown toggle in the header.
+     * Hovers first (site may open on hover), then clicks. Falls back to JS click.
+     * @throws Exception 
+     */
+    public void clickOnlineCourseDropdown() throws Exception {
+        try {
+            WebElement toggle = wait.until(
+                    ExpectedConditions.presenceOfElementLocated(By.id("online_course_dropdown")));
+
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].scrollIntoView({block:'center'});", toggle);
+            Thread.sleep(400);
+
+            // First hover
+            actions.moveToElement(toggle).pause(Duration.ofMillis(500)).perform();
+            Thread.sleep(800);
+
+            // Now force the dropdown open via JS — this bypasses mouseleave behavior
+            ((JavascriptExecutor) driver).executeScript(
+                    "const t = document.getElementById('online_course_dropdown');" +
+                    "if (!t) return;" +
+                    "let node = t.parentElement;" +
+                    "for (let i = 0; i < 6 && node; i++, node = node.parentElement) {" +
+                    "  const menu = node.querySelector('#online_hover, [class*=dropdown-menu], [class*=mega-menu]');" +
+                    "  if (menu) {" +
+                    "    menu.style.display = 'block';" +
+                    "    menu.style.visibility = 'visible';" +
+                    "    menu.style.opacity = '1';" +
+                    "    menu.classList.add('show');" +
+                    "  }" +
+                    "}");
+
+            Thread.sleep(500);
+
+            System.out.println("🖱️ Clicked Online Course dropdown toggle");
+
+            // Wait for items
+            new WebDriverWait(driver, Duration.ofSeconds(10)).until(
+                    ExpectedConditions.presenceOfElementLocated(
+                            By.xpath("//*[@id='online_hover']//ul/li")));
+
+            Thread.sleep(1000);
+
+        } catch (Exception e) {
+            System.out.println("❌ Failed to click Online Course dropdown: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Scrolls to and clicks the 16th item inside the online_hover dropdown.
+     * Handles same-tab and new-tab navigation.
+     * @throws Exception 
+     */
+    /**
+     * Clicks the "Insurance" item inside the Online Course dropdown.
+     * Uses Actions (scrollIntoView + move + click). Handles same-tab and new-tab navigation.
+     * @throws Exception 
+     */
+    /**
+        /**
+     * Clicks the "Insurance" item in the Online Course dropdown.
+     * The <li> is a layout wrapper; the clickable element is a nested <a>.
+     * So we find the <li>, locate the inner <a>, scroll it into view, and click it.
+     * @throws Exception 
+     */
+    public void clickInsuranceDropdownItem() throws Exception {
+        JavascriptExecutor js = (JavascriptExecutor) driver;
+
+        try {
+            // 1. Ensure the dropdown has rendered items
+            wait.until(ExpectedConditions.presenceOfElementLocated(
+                    By.xpath("//*[@id='online_hover']//ul/li")));
+            Thread.sleep(1000);
+
+            // 2. Find the Insurance <li> via JS (works even if hidden)
+            Object jsResult = js.executeScript(
+                    "const root = document.getElementById('online_hover');" +
+                    "if (!root) return null;" +
+                    "const items = root.querySelectorAll('li');" +
+                    "for (const li of items) {" +
+                    "  if (li.textContent.trim() === 'Insurance') return li;" +
+                    "}" +
+                    "return null;");
+
+            if (!(jsResult instanceof WebElement)) {
+                throw new NoSuchElementException("'Insurance' <li> not found");
+            }
+
+            WebElement li = (WebElement) jsResult;
+            System.out.println("✅ 'Insurance' <li> located");
+
+            // 3. Prefer the <a> inside the <li>; fall back to the <li> itself
+            WebElement clickTarget = li;
+            try {
+                WebElement anchor = li.findElement(By.xpath(".//a"));
+                if (anchor.isDisplayed() || anchor.getAttribute("href") != null) {
+                    clickTarget = anchor;
+                    System.out.println("🎯 Clicking inner <a> instead of <li>");
+                }
+            } catch (Exception ignored) {
+                System.out.println("ℹ️ No inner <a>, will click the <li> directly");
+            }
+
+            // 4. Scroll the item into view inside its scrollable ancestor
+            js.executeScript(
+                    "const item = arguments[0];" +
+                    "let n = item.parentElement;" +
+                    "while (n && n !== document.body) {" +
+                    "  if (n.scrollHeight > n.clientHeight + 5) {" +
+                    "    n.scrollTop = item.offsetTop - n.clientHeight / 2;" +
+                    "    break;" +
+                    "  }" +
+                    "  n = n.parentElement;" +
+                    "}", clickTarget);
+            Thread.sleep(500);
+            js.executeScript("arguments[0].scrollIntoView({block:'center'});", clickTarget);
+            Thread.sleep(500);
+
+            // 5. Snapshot state before clicking
+            String startUrl = driver.getCurrentUrl();
+            Set<String> windowsBefore = driver.getWindowHandles();
+
+            // 6. Try real Actions click first
+            try {
+                actions.moveToElement(clickTarget)
+                        .pause(Duration.ofMillis(300))
+                        .click()
+                        .perform();
+                System.out.println("🖱️ (Actions) Clicked Insurance target");
+            } catch (Exception actionEx) {
+                js.executeScript("arguments[0].click();", clickTarget);
+                System.out.println("🖱️ (JS click) Clicked Insurance target");
+            }
+
+            // 7. Wait briefly for any navigation — but if none occurs, don't fail
+            //    (site may open a sub-panel; the next step navigates elsewhere)
+            try {
+                new WebDriverWait(driver, Duration.ofSeconds(8)).until(d ->
+                        d.getWindowHandles().size() > windowsBefore.size()
+                                || !d.getCurrentUrl().equals(startUrl));
+            } catch (Exception ignored) {
+                System.out.println("ℹ️ No navigation after Insurance click — continuing");
+            }
+
+            // 8. Switch to new tab if one opened
+            Set<String> windowsAfter = driver.getWindowHandles();
+            if (windowsAfter.size() > windowsBefore.size()) {
+                for (String handle : windowsAfter) {
+                    if (!windowsBefore.contains(handle)) {
+                        driver.switchTo().window(handle);
+                        System.out.println("➡️ Switched to new tab: " + driver.getCurrentUrl());
+                        break;
+                    }
+                }
+            } else if (!driver.getCurrentUrl().equals(startUrl)) {
+                System.out.println("➡️ Navigated in same tab: " + driver.getCurrentUrl());
+            }
+
+            Thread.sleep(1500);
+
+        } catch (Exception e) {
+            System.out.println("❌ Failed to click 'Insurance' item: " + e.getMessage());
+            throw e;
+        }
+    }
+    public void clickNIACLAssistantLink() throws Exception {
+        try {
+            By linkLocator = By.xpath(
+                    "//div[@id='online_course-16']//span[contains(text(),'NIACL Assistant')]");
+
+            // Give the page extra time — the click on Insurance may have shown a new panel
+            WebElement link = new WebDriverWait(driver, Duration.ofSeconds(20))
+                    .until(ExpectedConditions.presenceOfElementLocated(linkLocator));
+
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].scrollIntoView({block:'center'});", link);
+            Thread.sleep(700);
+
+            // Prefer the enclosing <a> if present
+            WebElement clickTarget = link;
+            try {
+                WebElement anchor = link.findElement(By.xpath("./ancestor::a[1]"));
+                if (anchor.isDisplayed()) clickTarget = anchor;
+            } catch (Exception ignored) { }
+
+            String startUrl = driver.getCurrentUrl();
+            Set<String> windowsBefore = driver.getWindowHandles();
+
+            try {
+                actions.moveToElement(clickTarget)
+                        .pause(Duration.ofMillis(300))
+                        .click()
+                        .perform();
+            } catch (Exception e) {
+                ((JavascriptExecutor) driver)
+                        .executeScript("arguments[0].click();", clickTarget);
+            }
+
+            System.out.println("🖱️ Clicked 'NIACL Assistant' link");
+
+            try {
+                new WebDriverWait(driver, Duration.ofSeconds(15)).until(d ->
+                        d.getWindowHandles().size() > windowsBefore.size()
+                                || !d.getCurrentUrl().equals(startUrl));
+            } catch (Exception ignored) {
+                System.out.println("ℹ️ No navigation after NIACL click — continuing");
+            }
+
+            Set<String> windowsAfter = driver.getWindowHandles();
+            if (windowsAfter.size() > windowsBefore.size()) {
+                for (String handle : windowsAfter) {
+                    if (!windowsBefore.contains(handle)) {
+                        driver.switchTo().window(handle);
+                        System.out.println("➡️ Switched to new tab: " + driver.getCurrentUrl());
+                        break;
+                    }
+                }
+            } else if (!driver.getCurrentUrl().equals(startUrl)) {
+                System.out.println("➡️ Navigated in same tab: " + driver.getCurrentUrl());
+            }
+
+            Thread.sleep(1500);
+
+        } catch (Exception e) {
+            System.out.println("❌ Failed to click 'NIACL Assistant' link: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Scrolls to and clicks the "Try Me Package" button (#try_me_package).
+     * Handles iframe-wrapped content, Actions/JS fallback, and popup interference.
+     * @throws Exception 
+     */
+    public void scrollAndClickTryMePackage() throws Exception {
+        boolean switchedToIframe = false;
+
+        try {
+            // Close any popup that might block the button
+            closePopupIfPresent();
+
+            if (driver.findElements(By.id("try_me_package")).isEmpty()) {
+                List<WebElement> frames = driver.findElements(By.tagName("iframe"));
+                for (WebElement f : frames) {
+                    try {
+                        driver.switchTo().frame(f);
+                        if (!driver.findElements(By.id("try_me_package")).isEmpty()) {
+                            switchedToIframe = true;
+                            System.out.println("✅ Try Me Package button found inside iframe");
+                            break;
+                        }
+                        driver.switchTo().defaultContent();
+                    } catch (Exception ignored) {
+                        driver.switchTo().defaultContent();
+                    }
+                }
+            }
+
+            WebElement btn = wait.until(
+                    ExpectedConditions.presenceOfElementLocated(By.id("try_me_package")));
+
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].scrollIntoView({block:'center'});", btn);
+            Thread.sleep(600);
+
+            String startUrl = driver.getCurrentUrl();
+            Set<String> windowsBefore = driver.getWindowHandles();
+
+            try {
+                actions.moveToElement(btn)
+                        .pause(Duration.ofMillis(300))
+                        .click()
+                        .perform();
+            } catch (Exception e) {
+                ((JavascriptExecutor) driver)
+                        .executeScript("arguments[0].click();", btn);
+            }
+
+            System.out.println("✅ Clicked Try Me Package button");
+
+            try {
+                new WebDriverWait(driver, Duration.ofSeconds(8)).until(d ->
+                        d.getWindowHandles().size() > windowsBefore.size()
+                                || !d.getCurrentUrl().equals(startUrl)
+                                || d.findElements(By.id("closepop-up")).size() > 0);
+            } catch (Exception ignored) {
+                System.out.println("ℹ️ No page change after Try Me Package click — continuing");
+            }
+
+            Set<String> windowsAfter = driver.getWindowHandles();
+            if (windowsAfter.size() > windowsBefore.size()) {
+                for (String handle : windowsAfter) {
+                    if (!windowsBefore.contains(handle)) {
+                        driver.switchTo().window(handle);
+                        System.out.println("➡️ Switched to new tab: " + driver.getCurrentUrl());
+                        break;
+                    }
+                }
+            }
+
+            Thread.sleep(1200);
+
+        } catch (Exception e) {
+            System.out.println("❌ Failed to click Try Me Package: " + e.getMessage());
+            throw e;
+        } finally {
+            if (switchedToIframe) {
+                try { driver.switchTo().defaultContent(); } catch (Exception ignored) {}
+            }
+        }
+    }
+
+    /**
+     * Returns true if the Try Me Package page (or related signal) is visible.
+     */
+    public boolean isTryMePackagePageOpen() {
+        try {
+            String url = driver.getCurrentUrl().toLowerCase();
+            String src = driver.getPageSource().toLowerCase();
+
+            boolean urlHints = url.contains("try-me")
+                    || url.contains("tryme")
+                    || url.contains("package")
+                    || url.contains("demo");
+
+            boolean contentHints = src.contains("try me package")
+                    || src.contains("try me")
+                    || src.contains("free trial");
+
+            return urlHints || contentHints;
         } catch (Exception e) {
             return false;
         }

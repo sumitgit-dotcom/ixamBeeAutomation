@@ -61,7 +61,7 @@ public class HomePageSteps {
         System.out.println("🎉 Title verified successfully");
     }
 
-    // -------- Online Course dropdown --------
+    // -------- Online Course dropdown (@dropdown) --------
 
     @When("I hover on the {string} dropdown")
     public void i_hover_on_the_dropdown(String dropdownName) throws Exception {
@@ -85,7 +85,7 @@ public class HomePageSteps {
         assertTrue(!items.isEmpty(), "❌ No items found in Online Course dropdown");
     }
 
-    // -------- Search flow --------
+    // -------- Search flow (@search) --------
 
     @When("I click the header search bar")
     public void i_click_the_header_search_bar() throws Exception {
@@ -113,7 +113,7 @@ public class HomePageSteps {
         System.out.println("🎉 Search flow completed successfully");
     }
 
-    // -------- Free Demo Flow --------
+    // -------- Free Demo Flow (@demo) --------
 
     @When("I scroll and click the {string} card")
     public void i_scroll_and_click_the_card(String cardText) {
@@ -144,6 +144,8 @@ public class HomePageSteps {
     public void i_click_the_button(String buttonText) throws Exception {
         if (buttonText.equalsIgnoreCase("Send OTP")) {
             homePage.clickSendOtpButton();
+        } else if (buttonText.equalsIgnoreCase("Try Me Package")) {
+            homePage.scrollAndClickTryMePackage();
         } else {
             throw new IllegalArgumentException("Unsupported button: " + buttonText);
         }
@@ -156,7 +158,7 @@ public class HomePageSteps {
         System.out.println("🎉 Demo OTP flow completed");
     }
 
-    // -------- Header dropdowns + multi-tab flow --------
+    // -------- Header dropdowns + multi-tab (@header) --------
 
     @When("I hover on all header dropdowns")
     public void i_hover_on_all_header_dropdowns() {
@@ -173,5 +175,42 @@ public class HomePageSteps {
         assertTrue(homePage.areBothTabsOpen(),
                 "❌ Expected at least 3 tabs (1 original + 2 new) but found fewer");
         System.out.println("🎉 Multi-tab flow completed");
+    }
+
+    // -------- Course Flow (@course) --------
+
+    @When("I click the {string} dropdown")
+    public void i_click_the_dropdown(String dropdownName) throws Exception {
+        if (dropdownName.equalsIgnoreCase("Online Course")) {
+            homePage.clickOnlineCourseDropdown();
+        } else {
+            throw new IllegalArgumentException("Unsupported dropdown: " + dropdownName);
+        }
+    }
+
+    @When("I scroll and click the Insurance item in the online course dropdown")
+    public void i_scroll_and_click_insurance_item() throws Exception {
+        homePage.clickInsuranceDropdownItem();
+    }
+
+    @When("I scroll and click the NIACL Assistant link for online course 16")
+    public void i_scroll_and_click_niacl_assistant_link() throws Exception {
+        homePage.clickNIACLAssistantLink();
+    }
+
+    @When("I scroll and click the {string} button")
+    public void i_scroll_and_click_the_button(String buttonName) throws Exception {
+        if (buttonName.equalsIgnoreCase("Try Me Package")) {
+            homePage.scrollAndClickTryMePackage();
+        } else {
+            throw new IllegalArgumentException("Unsupported button: " + buttonName);
+        }
+    }
+
+    @Then("the Try Me Package page should be open")
+    public void the_try_me_package_page_should_be_open() {
+        assertTrue(homePage.isTryMePackagePageOpen(),
+                "❌ Try Me Package page not detected after click");
+        System.out.println("🎉 Course flow completed");
     }
 }
